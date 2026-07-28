@@ -99,7 +99,8 @@ export default function App() {
   const [admin, setAdmin] = useState(false)
   const [toast, setToast] = useState('')
 
-  const apiUrl = import.meta.env.VITE_API_URL ;
+  const apiUrl = "" ;
+  fetch(`${apiUrl}/api/auth/request-otp`, ...)
 
   const showToast = (msg: string) => {
     setToast(msg)
