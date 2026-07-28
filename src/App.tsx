@@ -99,9 +99,15 @@ export default function App() {
   const [admin, setAdmin] = useState(false)
   const [toast, setToast] = useState('')
 
-  const apiUrl = "" ;
-  fetch(`${apiUrl}/api/auth/request-otp`, ...)
+  const apiUrl = "";
 
+fetch(`${apiUrl}/api/auth/request-otp`, {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify(data),
+});
   const showToast = (msg: string) => {
     setToast(msg)
     setTimeout(() => setToast(''), 4500)
