@@ -318,7 +318,7 @@ export default function App() {
           year={year}
           branch={branch}
           apiUrl={apiUrl}
-          onSaved={profile => {
+          onSaved={(profile: any) => {
             applyProfile(profile)
             setScreen('catalog')
           }}
