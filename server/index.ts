@@ -870,6 +870,17 @@ app.use((error: unknown, _req: express.Request, res: express.Response, _next: ex
   res.status(500).json({ error: 'Server error. Check server logs.' })
 })
 
+import path from "path";
+
+const __dirname = path.resolve();
+
+app.use(express.static(path.join(__dirname, "dist")));
+
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "dist", "index.html"));
+});
+
+
 // --- SEED SEED DATA & START SERVER ---
 const seedDefaultData = async () => {
   await Subject.updateMany(
