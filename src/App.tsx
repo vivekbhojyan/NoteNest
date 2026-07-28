@@ -23,12 +23,15 @@ type NoteItem = {
   _id: string
   title: string
   ownerEmail: string
-  rating: number
-  readability: number
-  handwriting: number
-  clarity: number
-  coverage: number
-  explanation: string
+  rating?: number
+  analysis?: {
+    rating?: number
+    badge?: string
+    contentScore?: number
+    handwritingScore?: number
+    overallScore?: number
+  }
+  explanation?: string
   createdAt: string
 }
 
@@ -43,9 +46,34 @@ type Profile = {
   course?: string
   academicYear?: string
   branch?: string
+  profilePic?: string
 }
 
 const coursesWithBranches = new Set(['B.Tech', 'M.Tech'])
+
+function NoteNestLogo({ size = 34 }: { size?: number }) {
+  return (
+    <div className="notenest-logo" style={{ width: size, height: size, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', filter: 'drop-shadow(0 2px 8px rgba(14, 91, 77, 0.2))' }}>
+      <svg width={size} height={size} viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="36" height="36" rx="10" fill="url(#logoGrad)" />
+        {/* Open Notebook frame */}
+        <path d="M10 11C10 9.89543 10.8954 9 12 9H24C25.1046 9 26 9.89543 26 11V23C26 24.1046 25.1046 25 24 25H12C10.8954 25 10 24.1046 10 23V11Z" fill="#0A463B" stroke="#C5F250" strokeWidth="2" />
+        {/* Content lines */}
+        <path d="M14 14H22M14 18H22M14 22H18" stroke="#C5F250" strokeWidth="2" strokeLinecap="round" />
+        {/* Nest Cradle Curve at bottom */}
+        <path d="M8 24C12 28.5 24 28.5 28 24" stroke="#FB754B" strokeWidth="3" strokeLinecap="round" />
+        {/* AI Sparkle Star */}
+        <path d="M26 6L27.2 9.2L30.4 10.4L27.2 11.6L26 14.8L24.8 11.6L21.6 10.4L24.8 9.2L26 6Z" fill="#FFD700" />
+        <defs>
+          <linearGradient id="logoGrad" x1="0" y1="0" x2="36" y2="36" gradientUnits="userSpaceOnUse">
+            <stop stopColor="#0E5B4D" />
+            <stop offset="1" stopColor="#083D33" />
+          </linearGradient>
+        </defs>
+      </svg>
+    </div>
+  )
+}
 
 export default function App() {
   const [screen, setScreen] = useState<'login' | 'profile' | 'catalog' | 'unit' | 'admin'>('login')
@@ -58,6 +86,9 @@ export default function App() {
   const [course, setCourse] = useState('')
   const [year, setYear] = useState('')
   const [branch, setBranch] = useState('')
+  const [profilePic, setProfilePic] = useState('')
+  const [showProfileModal, setShowProfileModal] = useState(false)
+  const [showHelpModal, setShowHelpModal] = useState(false)
   const [subjects, setSubjects] = useState<Subject[]>([])
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null)
   const [selectedUnit, setSelectedUnit] = useState<Unit | null>(null)
@@ -79,6 +110,7 @@ export default function App() {
     setCourse(profile.course ?? '')
     setYear(profile.academicYear ?? '')
     setBranch(profile.branch ?? '')
+    if (profile.profilePic) setProfilePic(profile.profilePic)
   }
 
   const validEmail = email.trim().toLowerCase().endsWith('@abes.ac.in')
@@ -176,7 +208,10 @@ export default function App() {
     return (
       <main className="auth-page">
         <section className="auth-copy">
-          <div className="mark">a.</div>
+          <div className="brand-header">
+            <NoteNestLogo size={48} />
+            <span className="brand-title">NoteNest</span>
+          </div>
           <p className="eyebrow">ABES ENGINEERING COLLEGE</p>
           <h1>Learn together.<br /><em>Grow together.</em></h1>
           <p>Your verified academic resource hub — exclusively for ABES students.</p>
@@ -188,7 +223,10 @@ export default function App() {
         </section>
 
         <section className="auth-card">
-          <div className="mobile-mark">a.</div>
+          <div className="mobile-mark" style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 20 }}>
+            <NoteNestLogo size={36} />
+            <span style={{ font: '700 24px Georgia', color: '#0e5b4d' }}>NoteNest</span>
+          </div>
           <h2>Student Portal</h2>
           <p>Sign in with your college email.</p>
           <label>
@@ -216,7 +254,8 @@ export default function App() {
     <div className="app-shell">
       <header>
         <button className="brand" onClick={() => setScreen('catalog')}>
-          <b>a.</b> ABES <span>Academic Hub</span>
+          <NoteNestLogo size={32} />
+          <b>NoteNest</b> <span>ABES Academic Hub</span>
         </button>
         <div className="header-actions">
           <span className="welcome">Welcome, {welcomeName}</span>
@@ -228,11 +267,50 @@ export default function App() {
               ⌘ Admin Portal
             </button>
           )}
-          <div className="avatar">{email.substring(0, 2).toUpperCase()}</div>
+          <div className="avatar-clickable" title="View Profile & Help" onClick={() => setShowProfileModal(true)}>
+            {profilePic ? (
+              <img src={profilePic} alt="Profile" className="avatar-img" />
+            ) : (
+              <div className="avatar">{email ? email.substring(0, 2).toUpperCase() : 'VI'}</div>
+            )}
+          </div>
         </div>
       </header>
 
       {toast && <div className="toast">✓ {toast}</div>}
+
+      {showProfileModal && (
+        <ProfileModal
+          name={welcomeName}
+          email={email}
+          year={year}
+          branch={branch}
+          course={course}
+          unlocked={unlocked}
+          profilePic={profilePic}
+          apiUrl={apiUrl}
+          onClose={() => setShowProfileModal(false)}
+          onOpenHelp={() => {
+            setShowProfileModal(false)
+            setShowHelpModal(true)
+          }}
+          onEditProfile={() => {
+            setShowProfileModal(false)
+            setScreen('profile')
+          }}
+          onSignOut={() => {
+            localStorage.removeItem('abes_token')
+            setShowProfileModal(false)
+            setScreen('login')
+          }}
+          onProfilePicUpdated={(newPic: string) => setProfilePic(newPic)}
+          showToast={showToast}
+        />
+      )}
+
+      {showHelpModal && (
+        <HelpGuideModal onClose={() => setShowHelpModal(false)} />
+      )}
 
       {screen === 'profile' ? (
         <ProfileSetup
@@ -432,6 +510,78 @@ function Catalog({ course, year, branch, setYear, setBranch, subjects, onSelect 
   )
 }
 
+function FormattedAiNotes({ text, onCopy }: { text: string; onCopy: () => void }) {
+  const parseInlineBold = (content: string) => {
+    const parts = content.split(/(\*\*[^*]+\*\*)/g);
+    return parts.map((part, index) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return (
+          <strong key={index} className="term-highlight">
+            {part.slice(2, -2)}
+          </strong>
+        );
+      }
+      return part;
+    });
+  };
+
+  const lines = text.split('\n');
+  const elements: React.ReactNode[] = [];
+  let currentList: React.ReactNode[] = [];
+
+  const flushList = () => {
+    if (currentList.length > 0) {
+      elements.push(
+        <ul className="ai-note-list" key={`list-${elements.length}`}>
+          {currentList}
+        </ul>
+      );
+      currentList = [];
+    }
+  };
+
+  lines.forEach((line, index) => {
+    const trimmed = line.trim();
+
+    if (!trimmed || trimmed === '--' || trimmed === '---') {
+      flushList();
+      if (trimmed === '--' || trimmed === '---') {
+        elements.push(<hr key={`hr-${index}`} className="ai-note-divider" />);
+      }
+      return;
+    }
+
+    if (trimmed.startsWith('# ')) {
+      flushList();
+      elements.push(<h2 className="ai-note-h1" key={index}>{trimmed.replace('# ', '')}</h2>);
+    } else if (trimmed.startsWith('## ')) {
+      flushList();
+      elements.push(<h3 className="ai-note-h2" key={index}>{trimmed.replace('## ', '')}</h3>);
+    } else if (trimmed.startsWith('### ')) {
+      flushList();
+      elements.push(<h4 className="ai-note-h3" key={index}>{trimmed.replace('### ', '')}</h4>);
+    } else if (trimmed.startsWith('* ') || trimmed.startsWith('- ')) {
+      const listContent = trimmed.slice(2);
+      currentList.push(<li key={index}>{parseInlineBold(listContent)}</li>);
+    } else {
+      flushList();
+      elements.push(<p className="ai-note-p" key={index}>{parseInlineBold(trimmed)}</p>);
+    }
+  });
+
+  flushList();
+
+  return (
+    <div className="ai-notes-viewer">
+      <div className="ai-notes-header">
+        <h3><span>✦</span> Generated Revision Notes</h3>
+        <button className="copy-btn" onClick={onCopy}>📋 Copy Notes</button>
+      </div>
+      <div className="ai-notes-body">{elements}</div>
+    </div>
+  );
+}
+
 function UnitPage({ subject, unit, tab, setTab, unlocked, setUnlocked, showToast, onBack, apiUrl, fileToBase64, openBase64Pdf }: any) {
   const resources: ResourceType[] = ['Syllabus', 'Sessional papers', 'Previous papers', 'Notes']
   const [notesList, setNotesList] = useState<NoteItem[]>([])
@@ -439,6 +589,7 @@ function UnitPage({ subject, unit, tab, setTab, unlocked, setUnlocked, showToast
   const [syllabusTopics, setSyllabusTopics] = useState<string[]>([])
   const [aiNotesText, setAiNotesText] = useState('')
   const [evaluating, setEvaluating] = useState(false)
+  const [generatingAiNotes, setGeneratingAiNotes] = useState(false)
   const token = localStorage.getItem('abes_token')
 
   useEffect(() => {
@@ -466,7 +617,10 @@ function UnitPage({ subject, unit, tab, setTab, unlocked, setUnlocked, showToast
   }, [apiUrl, subject.code, tab, token, unit.unitId])
 
   const handleNoteUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    
+    console.log("handleNoteUpload called");
     const file = e.target.files?.[0]
+    console.log(file);
     if (!file) return
     if (file.type !== 'application/pdf') return showToast('Upload a PDF file.')
     if (file.size > 10 * 1024 * 1024) return showToast('File size must be under 10MB.')
@@ -511,14 +665,58 @@ function UnitPage({ subject, unit, tab, setTab, unlocked, setUnlocked, showToast
   }
 
   const generateAiNotes = async () => {
-    showToast('Generating syllabus-aligned study notes...')
-    const res = await fetch(`${apiUrl}/api/ai/generate-notes`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ subjectCode: subject.code, unitId: unit.unitId })
-    })
-    const data = await res.json()
-    if (data.generatedNotes) setAiNotesText(data.generatedNotes)
+    setGeneratingAiNotes(true)
+    setAiNotesText('')
+    showToast('Synthesizing study notes with Gemini AI...')
+    try {
+      const res = await fetch(`${apiUrl}/api/ai/generate-notes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ subjectCode: subject.code, unitId: unit.unitId })
+      })
+      const data = await res.json()
+      if (data.generatedNotes) {
+        setAiNotesText(data.generatedNotes)
+      } else {
+        showToast('Could not generate notes.')
+      }
+    } catch (err: any) {
+      showToast(err.message)
+    } finally {
+      setGeneratingAiNotes(false)
+    }
+  }
+
+  const deleteNote = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this note?')) return
+    try {
+      const res = await fetch(`${apiUrl}/api/notes/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Could not delete note.')
+      showToast('Note deleted.')
+      setNotesList(prev => prev.filter(n => n._id !== id))
+    } catch (err: any) {
+      showToast(err.message)
+    }
+  }
+
+  const deletePaper = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this paper?')) return
+    try {
+      const res = await fetch(`${apiUrl}/api/papers/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Could not delete paper.')
+      showToast('Paper deleted.')
+      setPapersList(prev => prev.filter(p => p._id !== id))
+    } catch (err: any) {
+      showToast(err.message)
+    }
   }
 
   const openNotePdf = async (id: string) => {
@@ -548,12 +746,39 @@ function UnitPage({ subject, unit, tab, setTab, unlocked, setUnlocked, showToast
         {resources.map(item => <button className={tab === item ? 'selected' : ''} key={item} onClick={() => setTab(item)}>{item}{item === 'Notes' && unlocked && <i> unlocked</i>}</button>)}
       </nav>
 
-      {tab === 'Syllabus' && <section className="panel"><h2>Official Unit Syllabus</h2><p className="muted">Uploaded by Department Head & used as AI evaluation benchmark</p><ol>{syllabusTopics.map((topic, i) => <li key={i}>{topic}</li>)}</ol></section>}
+      {tab === 'Syllabus' && (
+        <section className="panel">
+          <h2>Official Unit Syllabus</h2>
+          <p className="muted">Uploaded by Department Head & used as AI evaluation benchmark</p>
+          {syllabusTopics.length > 0 ? (
+            <div className="syllabus-paragraph-box">
+              <p className="syllabus-paragraph-text">
+                {syllabusTopics.map((topic, i) => (
+                  <span className="syllabus-topic-pill" key={i}>
+                    {topic}
+                  </span>
+                ))}
+              </p>
+            </div>
+          ) : (
+            <p className="muted" style={{ marginTop: 15 }}>No syllabus uploaded yet by admin.</p>
+          )}
+        </section>
+      )}
 
       {(tab === 'Sessional papers' || tab === 'Previous papers') && (
         <section className="panel">
           <div className="panel-head"><div><h2>{tab}</h2><p className="muted">Open academic material shared by students</p></div><label className="upload-small">+ Upload paper<input type="file" accept="application/pdf" onChange={handlePaperUpload} /></label></div>
-          {papersList.map(paper => <div className="file-row" key={paper._id}><span className="pdf">PDF</span><div><b>{paper.title}</b><small>Added {new Date(paper.createdAt).toLocaleDateString()}</small></div><button onClick={() => openPaperPdf(paper._id)}>Open PDF →</button></div>)}
+          {papersList.map(paper => (
+            <div className="file-row" key={paper._id}>
+              <span className="pdf">PDF</span>
+              <div><b>{paper.title}</b><small>Added {new Date(paper.createdAt).toLocaleDateString()}</small></div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button onClick={() => openPaperPdf(paper._id)}>Open PDF →</button>
+                <button className="danger" style={{ padding: '6px 12px', fontSize: 12 }} onClick={() => deletePaper(paper._id)}>Delete</button>
+              </div>
+            </div>
+          ))}
           {papersList.length === 0 && <p className="muted" style={{ marginTop: 15 }}>No papers uploaded yet.</p>}
         </section>
       )}
@@ -562,10 +787,64 @@ function UnitPage({ subject, unit, tab, setTab, unlocked, setUnlocked, showToast
         <section>
           <div className="notes-banner"><div><span className="spark">✦</span><h2>Share once. Unlock everything.</h2><p>{unlocked ? 'You have full access to all student notes.' : 'Upload 1 genuine handwritten PDF note to let AI verify quality (Min rating 3.0/5.0 required).'}</p></div>{!unlocked && <label className="primary upload">{evaluating ? 'Analyzing Notes...' : 'Upload Notes PDF to Unlock'}<input type="file" accept="application/pdf" disabled={evaluating} onChange={handleNoteUpload} /></label>}</div>
           {unlocked ? <>
-            <div className="ai-note"><span>✦</span><div><b>AI Instant Study Notes</b><p>Generate clean, topic-by-topic revision summaries for this unit.</p></div><button onClick={generateAiNotes}>Generate Notes →</button></div>
-            {aiNotesText && <div className="panel" style={{ marginTop: 20, whiteSpace: 'pre-line' }}><h3>Generated Revision Summary</h3><p>{aiNotesText}</p></div>}
+            <div className="ai-note">
+              <span>✦</span>
+              <div>
+                <b>AI Instant Study Notes</b>
+                <p>Generate clean, topic-by-topic revision summaries for this unit based on syllabus.</p>
+              </div>
+              <button disabled={generatingAiNotes} onClick={generateAiNotes}>
+                {generatingAiNotes ? (
+                  <>
+                    <span className="sparkle-spin">✦</span> Generating Notes...
+                  </>
+                ) : (
+                  'Read AI Notes →'
+                )}
+              </button>
+            </div>
+
+            {generatingAiNotes && (
+              <div className="ai-loading-card">
+                <span className="big-spark">✦</span>
+                <h3>Synthesizing Revision Notes with Gemini AI...</h3>
+                <p>Analyzing unit syllabus topics & structuring key definitions, formulas, and exam concepts.</p>
+                <div className="skeleton-container">
+                  <div className="skeleton-bar"></div>
+                  <div className="skeleton-bar short"></div>
+                  <div className="skeleton-bar"></div>
+                </div>
+              </div>
+            )}
+
+            {!generatingAiNotes && aiNotesText && (
+              <FormattedAiNotes
+                text={aiNotesText}
+                onCopy={() => {
+                  navigator.clipboard.writeText(aiNotesText)
+                  showToast('Notes copied to clipboard!')
+                }}
+              />
+            )}
             <h2 className="section-title">Community Notes <small>(Sorted by AI Rating)</small></h2>
-            {notesList.map(note => <article className="note-row" key={note._id}><span className="pdf">PDF</span><div><h3>{note.title}</h3><p>{note.ownerEmail} · {new Date(note.createdAt).toLocaleDateString()}</p></div><strong>★ {note.rating.toFixed(1)} / 5.0</strong><button onClick={() => openNotePdf(note._id)}>Open PDF →</button></article>)}
+            {notesList.map(note => {
+              const val = note.rating ?? note.analysis?.rating ?? 0;
+              return (
+                <article className="note-row" key={note._id}>
+                  <span className="pdf">PDF</span>
+                  <div>
+                    <h3>{note.title}</h3>
+                    <p>{note.ownerEmail} · {new Date(note.createdAt).toLocaleDateString()}</p>
+                  </div>
+                  <strong>★ {Number(val).toFixed(1)} / 5.0</strong>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button onClick={() => openNotePdf(note._id)}>Open PDF →</button>
+                    <button className="danger" style={{ padding: '6px 12px', fontSize: 12 }} onClick={() => deleteNote(note._id)}>Delete</button>
+                  </div>
+                </article>
+              )
+            })}
+            {notesList.length === 0 && <p className="muted" style={{ marginTop: 15 }}>No notes uploaded for this unit yet.</p>}
           </> : <div className="locked"><span>🔒</span><h2>Notes Library is Locked</h2><p>Upload 1 handwritten study note PDF. Gemini AI will evaluate readability, handwriting, and syllabus coverage.</p><label className="primary upload">Upload Notes to Pass Test<input type="file" accept="application/pdf" onChange={handleNoteUpload} /></label><small>Notes scoring 3.0 / 5.0 or above unlock full peer notes access.</small></div>}
         </section>
       )}
@@ -773,3 +1052,161 @@ function AdminPortal({ onBack, showToast, apiUrl }: any) {
     </main>
   )
 }
+
+function ProfileModal({
+  name,
+  email,
+  year,
+  branch,
+  course,
+  unlocked,
+  profilePic,
+  apiUrl,
+  onClose,
+  onOpenHelp,
+  onEditProfile,
+  onSignOut,
+  onProfilePicUpdated,
+  showToast
+}: any) {
+  const [uploadingPic, setUploadingPic] = useState(false)
+
+  const handlePicUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith('image/')) return showToast('Please select an image file.')
+    if (file.size > 5 * 1024 * 1024) return showToast('Image size must be under 5MB.')
+
+    setUploadingPic(true)
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.readAsDataURL(file)
+        reader.onload = () => resolve(reader.result as string)
+        reader.onerror = reject
+      })
+
+      const token = localStorage.getItem('abes_token')
+      const res = await fetch(`${apiUrl}/api/profile`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ profilePic: base64 })
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Could not upload profile picture.')
+      onProfilePicUpdated(base64)
+      showToast('✓ Profile picture updated!')
+    } catch (err: any) {
+      showToast(err.message)
+    } finally {
+      setUploadingPic(false)
+    }
+  }
+
+  const initials = email ? email.substring(0, 2).toUpperCase() : 'VI'
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-card" onClick={e => e.stopPropagation()}>
+        <button className="modal-close" onClick={onClose}>✕</button>
+
+        <div className="profile-avatar-upload">
+          {profilePic ? (
+            <img src={profilePic} alt="Profile" className="large-avatar-img" />
+          ) : (
+            <div className="large-avatar-text">{initials}</div>
+          )}
+          <label className="camera-badge" title="Upload profile picture">
+            📷
+            <input type="file" accept="image/*" disabled={uploadingPic} onChange={handlePicUpload} />
+          </label>
+        </div>
+
+        <h2 style={{ textAlign: 'center', margin: '0 0 4px', fontSize: 20 }}>{name}</h2>
+        <p style={{ textAlign: 'center', color: '#69746f', fontSize: 13, margin: '0 0 16px' }}>{email}</p>
+
+        <div className="profile-info-list">
+          <div className="profile-info-row">
+            <span>Course & Year</span>
+            <strong>{course || 'B.Tech'} · {year || 'Not Set'}</strong>
+          </div>
+          <div className="profile-info-row">
+            <span>Branch</span>
+            <strong>{branch || 'Not Set'}</strong>
+          </div>
+          <div className="profile-info-row">
+            <span>Notes Library</span>
+            <strong>{unlocked ? 'Unlocked 🔓' : 'Locked 🔒'}</strong>
+          </div>
+        </div>
+
+        <button className="help-btn" onClick={onOpenHelp}>
+          ❓ How to take maximum advantage of NoteNest
+        </button>
+
+        <button className="secondary-btn" onClick={onEditProfile}>
+          ✏️ Edit Academic Year & Branch
+        </button>
+
+        <button className="danger" style={{ width: '100%', marginTop: 8, padding: 12, borderRadius: 9, cursor: 'pointer' }} onClick={onSignOut}>
+          Sign Out
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function HelpGuideModal({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-card" onClick={e => e.stopPropagation()}>
+        <button className="modal-close" onClick={onClose}>✕</button>
+
+        <h2 style={{ margin: '0 0 6px', fontSize: 22, color: '#0e5b4d' }}>How to Benefit from NoteNest 🪹</h2>
+        <p style={{ color: '#69746f', fontSize: 13, margin: '0 0 20px' }}>
+          Your ultimate ABES Academic Hub guide to scoring higher in exams.
+        </p>
+
+        <div className="help-guide-list">
+          <div className="help-card">
+            <span className="help-card-icon">🔓</span>
+            <div>
+              <h4>1. Share 1 Note, Unlock Everything</h4>
+              <p>Upload at least 1 handwritten study note PDF of any unit. Gemini AI checks legibility and syllabus coverage (&ge; 3.0 rating required). Once verified, you get full access to all peer notes across all subjects!</p>
+            </div>
+          </div>
+
+          <div className="help-card">
+            <span className="help-card-icon">✦</span>
+            <div>
+              <h4>2. Instant AI Study Notes</h4>
+              <p>Click <b>Read AI Notes</b> inside any subject unit to view clean, structured revision summaries synthesized directly from official syllabus topics.</p>
+            </div>
+          </div>
+
+          <div className="help-card">
+            <span className="help-card-icon">📄</span>
+            <div>
+              <h4>3. Open Exam Papers</h4>
+              <p>Sessional Test Papers and Previous Year AKTU Question Papers are available to all students without any locking condition.</p>
+            </div>
+          </div>
+
+          <div className="help-card">
+            <span className="help-card-icon">📚</span>
+            <div>
+              <h4>4. Department Syllabus Benchmark</h4>
+              <p>Check the exact unit syllabus topics uploaded by the department head to stay focused on high-yield exam material.</p>
+            </div>
+          </div>
+        </div>
+
+        <button className="primary" style={{ width: '100%', marginTop: 10, cursor: 'pointer' }} onClick={onClose}>
+          Got it, let's study! 🚀
+        </button>
+      </div>
+    </div>
+  )
+}
+
