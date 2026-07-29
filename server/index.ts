@@ -4,7 +4,7 @@ import crypto from 'node:crypto'
 import express from 'express'
 import jwt from 'jsonwebtoken'
 import mongoose, { Schema } from 'mongoose'
-import * as SibApiV3Sdk from '@getbrevo/brevo'
+import { BrevoClient } from '@getbrevo/brevo'
 import { GoogleGenAI } from '@google/genai'
 
 const env = (name: string) => {
@@ -146,8 +146,7 @@ const Note = mongoose.model('Note', noteSchema)
 const Paper = mongoose.model('Paper', paperSchema)
 
 // --- SERVICES SETUP ---
-const brevo = new SibApiV3Sdk.TransactionalEmailsApi()
-brevo.setApiKey(SibApiV3Sdk.TransactionalEmailsApiApiKeys.apiKey, env('BREVO_API_KEY'))
+const brevo = new BrevoClient({ apiKey: env('BREVO_API_KEY') })
 
 const ai = new GoogleGenAI({ apiKey: env('AI_API_KEY') })
 
@@ -184,13 +183,13 @@ app.post('/api/auth/request-otp', async (req, res, next) => {
       { upsert: true, new: true }
     )
 
-    await brevo.sendTransacEmail({
+    await brevo.transactionalEmails.sendTransacEmail({
       sender: { email: env('MAIL_FROM'), name: 'ABES Academic Hub' },
       to: [{ email }],
       subject: 'Your ABES Academic Hub OTP',
       textContent: `Your one-time password is ${otp}. It expires in 5 minutes. Do not share this code.`
     }).catch((error: any) => {
-      console.error('Brevo send failed:', error?.response?.body ?? error)
+      console.error('Brevo send failed:', error?.rawResponse ?? error)
       throw new Error('Failed to send OTP email.')
     })
 
