@@ -147,6 +147,7 @@ const Paper = mongoose.model('Paper', paperSchema)
 
 // --- SERVICES SETUP ---
 const brevo = new BrevoClient({ apiKey: env('BREVO_API_KEY') })
+console.log('BREVO_API_KEY loaded:', env('BREVO_API_KEY').slice(0, 8) + '...', '(length:', env('BREVO_API_KEY').length, ')')
 
 const ai = new GoogleGenAI({ apiKey: env('AI_API_KEY') })
 
@@ -188,8 +189,15 @@ app.post('/api/auth/request-otp', async (req, res, next) => {
       to: [{ email }],
       subject: 'Your ABES Academic Hub OTP',
       textContent: `Your one-time password is ${otp}. It expires in 5 minutes. Do not share this code.`
-    }).catch((error: any) => {
-      console.error('Brevo send failed:', error?.rawResponse ?? error)
+    }).catch(async (error: any) => {
+      let bodyText = ''
+      try { bodyText = await error?.rawResponse?.text?.() } catch {}
+      console.error('Brevo send failed:', {
+        name: error?.name,
+        message: error?.message,
+        status: error?.rawResponse?.status,
+        body: bodyText
+      })
       throw new Error('Failed to send OTP email.')
     })
 
