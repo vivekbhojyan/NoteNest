@@ -183,17 +183,23 @@ app.post('/api/auth/request-otp', async (req, res, next) => {
       { upsert: true, new: true }
     )
 
-    await resend.emails.send({
-  from: env('MAIL_FROM'),
-  to: email,
-  subject: 'Your ABES Academic Hub OTP',
-  text: `Your one-time password is ${otp}. It expires in 5 minutes. Do not share this code.`
-})
+    const { data, error } = await resend.emails.send({
+      from: env('MAIL_FROM'),
+      to: email,
+      subject: 'Your ABES Academic Hub OTP',
+      text: `Your one-time password is ${otp}. It expires in 5 minutes. Do not share this code.`
+    })
 
-    res.status(202).json({ message: 'OTP sent successfully.' })
-  } catch (error) { next(error) }
-})
+    if (error) {
+      console.error('Resend send failed:', error)
+      throw new Error(error.message)
+    }
 
+    res.json({ ok: true })
+  } catch (error) {
+    next(error)
+  }
+})
 app.post('/api/auth/verify-otp', async (req, res, next) => {
   try {
     const email = String(req.body.email ?? '').trim().toLowerCase()
