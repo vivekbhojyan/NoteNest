@@ -4,7 +4,7 @@ import crypto from 'node:crypto'
 import express from 'express'
 import jwt from 'jsonwebtoken'
 import mongoose, { Schema } from 'mongoose'
-import nodemailer from 'nodemailer'
+import { Resend } from 'resend'
 import { GoogleGenAI } from '@google/genai'
 
 const env = (name: string) => {
@@ -146,12 +146,7 @@ const Note = mongoose.model('Note', noteSchema)
 const Paper = mongoose.model('Paper', paperSchema)
 
 // --- SERVICES SETUP ---
-const transport = nodemailer.createTransport({
-  host: env('SMTP_HOST'),
-  port: Number(process.env.SMTP_PORT ?? 587),
-  secure: process.env.SMTP_SECURE === 'true',
-  auth: { user: env('SMTP_USER'), pass: env('SMTP_PASS') },
-})
+const resend = new Resend(env('RESEND_API_KEY'))
 
 const ai = new GoogleGenAI({ apiKey: env('AI_API_KEY') })
 
@@ -188,12 +183,12 @@ app.post('/api/auth/request-otp', async (req, res, next) => {
       { upsert: true, new: true }
     )
 
-    await transport.sendMail({
-      from: env('MAIL_FROM'),
-      to: email,
-      subject: 'Your ABES Academic Hub OTP',
-      text: `Your one-time password is ${otp}. It expires in 5 minutes. Do not share this code.`
-    })
+    await resend.emails.send({
+  from: env('MAIL_FROM'),
+  to: email,
+  subject: 'Your ABES Academic Hub OTP',
+  text: `Your one-time password is ${otp}. It expires in 5 minutes. Do not share this code.`
+})
 
     res.status(202).json({ message: 'OTP sent successfully.' })
   } catch (error) { next(error) }
@@ -219,12 +214,15 @@ app.post('/api/auth/verify-otp', async (req, res, next) => {
     const defaultRole = isAdminEmail(email) ? 'admin' : 'student'
 
     const user = await User.findOneAndUpdate(
-      { email },
-      isAdminEmail(email)
-        ? { $set: { role: 'admin' }, $setOnInsert: { email } }
-        : { $setOnInsert: { email, role: defaultRole } },
-      { upsert: true, new: true }
-    )
+  { email },
+  isAdminEmail(email)
+    ? { $set: { role: 'admin' }, $setOnInsert: { email } }
+    : { $setOnInsert: { email, role: defaultRole } },
+  {
+    upsert: true,
+    returnDocument: "after"
+  }
+)
 
     const token = jwt.sign({ sub: user.id, email: user.email, role: user.role }, env('JWT_SECRET'), { expiresIn: '8h' })
     res.json({
@@ -934,7 +932,7 @@ const seedDefaultData = async () => {
 
 mongoose.connect(env('MONGODB_URI')).then(async () => {
   await seedDefaultData()
-  await transport.verify().catch(() => console.log('SMTP verification check complete.'))
+  
   app.listen(Number(process.env.PORT ?? 3001), () => console.log(`ABES Academic Portal API active on port ${process.env.PORT ?? 3001}`))
 }).catch(error => { console.error('Startup failed:', error); process.exit(1) })
 
