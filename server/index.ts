@@ -545,10 +545,11 @@ Return ONLY this JSON:
 
       try {
         // Groq's vision models accept images, not raw PDFs — render up to the first 3 pages to PNG first
-        // (this model caps vision requests at 3 images per request)
+        // (this model caps vision requests at 3 images per request, and free-tier TPM limits require
+        // keeping resolution modest — 1.0 scale keeps well under the 8000 token/min cap)
         const pdfBuffer = Buffer.from(pdfBase64, "base64");
         const pngPages = await pdfToPng(pdfBuffer, {
-          viewportScale: 2.0,
+          viewportScale: 1.0,
           pagesToProcess: [1, 2, 3],
           strictPagesToProcess: false,
         });
