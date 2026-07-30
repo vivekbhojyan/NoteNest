@@ -27,15 +27,17 @@
   },
   "dependencies": {
     "@getbrevo/brevo": "^6.0.2",
-    "@google/genai": "^2.13.0",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "groq-sdk": "^1.4.1",
     "jsonwebtoken": "^9.0.3",
     "mongodb": "^7.5.0",
     "mongoose": "^9.8.0",
     "multer": "^2.2.0",
+    "node": "^26.5.1",
     "nodemailer": "^9.0.3",
+    "pdf-to-png-converter": "^4.2.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "resend": "^6.18.1"

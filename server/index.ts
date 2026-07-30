@@ -5,7 +5,8 @@ import express from 'express'
 import jwt from 'jsonwebtoken'
 import mongoose, { Schema } from 'mongoose'
 import { BrevoClient } from '@getbrevo/brevo'
-import { GoogleGenAI } from '@google/genai'
+import Groq from 'groq-sdk'
+import { pdfToPng } from 'pdf-to-png-converter'
 
 const env = (name: string) => {
   const value = process.env[name]
@@ -149,7 +150,7 @@ const Paper = mongoose.model('Paper', paperSchema)
 const brevo = new BrevoClient({ apiKey: env('BREVO_API_KEY') })
 console.log('BREVO_API_KEY loaded:', env('BREVO_API_KEY').slice(0, 8) + '...', '(length:', env('BREVO_API_KEY').length, ')')
 
-const ai = new GoogleGenAI({ apiKey: env('AI_API_KEY') })
+const groq = new Groq({ apiKey: env('GROQ_API_KEY') })
 
 const hash = (value: string) => crypto.createHash('sha256').update(value).digest('hex')
 
@@ -543,35 +544,37 @@ Return ONLY this JSON:
       let result;
 
       try {
-        const response = await ai.models.generateContent({
-          model: "gemini-1.5-flash",
-          contents: [
-            {
-              role: "user",
-              parts: [
-                {
-                  inlineData: {
-                    mimeType: "application/pdf",
-                    data: pdfBase64,
-                  },
-                },
-                {
-                  text: prompt,
-                },
-              ],
-            },
-          ],
-          config: {
-            responseMimeType: "application/json",
-          },
+        // Groq's vision models accept images, not raw PDFs — render up to the first 5 pages to PNG first
+        // (Groq currently caps vision requests at 5 images per request)
+        const pdfBuffer = Buffer.from(pdfBase64, "base64");
+        const pngPages = await pdfToPng(pdfBuffer, {
+          viewportScale: 2.0,
+          pagesToProcess: [1, 2, 3, 4, 5],
+          strictPagesToProcess: false,
         });
 
-        const text = response.text ?? "{}";
+        const imageContent = pngPages.map((page) => ({
+          type: "image_url" as const,
+          image_url: { url: `data:image/png;base64,${page.content.toString("base64")}` },
+        }));
+
+        const completion = await groq.chat.completions.create({
+          model: "qwen/qwen3.6-27b",
+          messages: [
+            {
+              role: "user",
+              content: [{ type: "text", text: prompt }, ...imageContent],
+            },
+          ],
+          response_format: { type: "json_object" },
+        });
+
+        const text = completion.choices[0]?.message?.content ?? "{}";
         result = JSON.parse(text);
-        console.log("Gemini AI Evaluation Result:");
+        console.log("Groq AI Evaluation Result:");
         console.log(JSON.stringify(result, null, 2));
       } catch (aiErr: any) {
-        console.warn("Gemini AI API call failed, applying quality verification fallback:", aiErr?.message || aiErr);
+        console.warn("Groq AI API call failed, applying quality verification fallback:", aiErr?.message || aiErr);
         result = {
           content: { syllabusCoverage: 45, conceptAccuracy: 12, depth: 8, examples: 4, organization: 4, revisionFriendliness: 4, total: 77 },
           handwriting: { characterRecognition: 40, wordLegibility: 16, neatness: 12, spacing: 8, overallReadability: 4, total: 80 },
@@ -817,13 +820,13 @@ Structure Guidelines:
 5. Include exam tips and formulas where relevant.
 6. Do NOT include raw horizontal dividers like '--' or extraneous Markdown noise.`
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-1.5-flash',
-        contents: prompt
+      const completion = await groq.chat.completions.create({
+        model: 'qwen/qwen3.6-27b',
+        messages: [{ role: 'user', content: prompt }],
       })
-      generatedText = response.text ?? ""
+      generatedText = completion.choices[0]?.message?.content ?? ""
     } catch (aiErr: any) {
-      console.warn("Gemini AI API Error, generating fallback high-yield study notes:", aiErr?.message || aiErr)
+      console.warn("Groq AI API Error, generating fallback high-yield study notes:", aiErr?.message || aiErr)
       generatedText = `# High-Yield Revision Notes: ${subjectCode} (Unit ${unitId})
 
 ## SECTION 1: Unit Concepts & Core Definitions
