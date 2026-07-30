@@ -568,6 +568,8 @@ Return ONLY this JSON:
             },
           ],
           response_format: { type: "json_object" },
+          reasoning_format: "hidden",
+          max_completion_tokens: 4096,
         });
 
         const text = completion.choices[0]?.message?.content ?? "{}";
@@ -824,6 +826,8 @@ Structure Guidelines:
       const completion = await groq.chat.completions.create({
         model: 'qwen/qwen3.6-27b',
         messages: [{ role: 'user', content: prompt }],
+        reasoning_format: "hidden",
+        max_completion_tokens: 4096,
       })
       generatedText = completion.choices[0]?.message?.content ?? ""
     } catch (aiErr: any) {
