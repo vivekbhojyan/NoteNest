@@ -491,6 +491,7 @@ Return exactly this JSON shape:
           ],
           response_format: { type: "json_object" },
           reasoning_format: "hidden",
+          reasoning_effort: "none",
           max_completion_tokens: 2048, // the JSON response is small; no need for 4096
         });
 
@@ -776,6 +777,7 @@ Structure Guidelines:
         model: 'qwen/qwen3.6-27b',
         messages: [{ role: 'user', content: prompt }],
         reasoning_format: "hidden",
+        reasoning_effort: "none",
         max_completion_tokens: 4096,
       })
       generatedText = completion.choices[0]?.message?.content ?? ""
