@@ -440,117 +440,39 @@ app.post(
       const syllabusTopics =
         syllabusRecord?.topics ?? ["Core course concepts"];
 
-      // ---------------- PROMPT ----------------
-      const prompt = `You are an extremely strict academic evaluator.
-Your task is to evaluate handwritten student notes against the official syllabus.
-Official Syllabus Topics:
+      // ---------------- PROMPT (trimmed to reduce prompt-token cost) ----------------
+      const prompt = `You are an extremely strict academic evaluator. Evaluate handwritten student notes against the syllabus below. Base every judgment strictly on evidence in the notes — never assume a topic is covered, never reward neat handwriting with higher content marks, and mark unaddressed topics as Missing. Return ONLY valid JSON, no markdown, no text outside the JSON.
+
+Syllabus Topics:
 ${JSON.stringify(syllabusTopics)}
-IMPORTANT RULES
-Never assume a topic is covered.
-Never give marks without evidence.
-If a topic is not present, mark it as Missing.
-Do not reward good handwriting with higher content marks.
-Return ONLY valid JSON.
-Do not include markdown or explanations outside the JSON.
-STEP 1: Syllabus Analysis
-Compare every syllabus topic individually.
-For each topic classify as:
-Covered
-Partially Covered
-Missing
-STEP 2: Content Evaluation (100 Marks)
-Evaluate:
-Syllabus Coverage (0-60)
-How much of the syllabus is actually covered.
-Concept Accuracy (0-15)
-Are the concepts technically correct?
-Depth of Explanation (0-10)
-Are the concepts explained in sufficient detail?
-Examples & Diagrams (0-5)
 
-Organization & Readability (0-5)
+STEP 1 — Syllabus Analysis
+Classify each syllabus topic as Covered, Partially Covered, or Missing.
 
-Revision Friendliness (0-5)
+STEP 2 — Content Evaluation (100 marks)
+syllabusCoverage (0-60), conceptAccuracy (0-15), depth (0-10), examples (0-5), organization (0-5), revisionFriendliness (0-5). Sum = content.total.
 
-Calculate:
-contentTotal =
-Coverage +
-Accuracy +
-Depth +
-Examples +
-Organization +
-RevisionFriendliness
-STEP 3: Handwriting Evaluation (100 Marks)
-Evaluate:
-Character Recognition (0-50)
-Estimate how many handwritten characters are clearly readable.
-Example:
-80% readable characters
-=
-40/50
-Word Legibility (0-20)
-Neatness (0-15)
-Spacing & Alignment (0-10)
-Overall Readability (0-5)
-Calculate:
-handwritingTotal =
-CharacterRecognition +
-WordLegibility +
-Neatness +
-Spacing +
-OverallReadability
-STEP 4: Study Readiness
-Estimate how useful these notes are for exam preparation.
-Return a percentage from 0-100.
-Return ONLY this JSON:
-{
-  "content": {
-    "syllabusCoverage": 0,
-    "conceptAccuracy": 0,
-    "depth": 0,
-    "examples": 0,
-    "organization": 0,
-    "revisionFriendliness": 0,
-    "total": 0
-  },
-  "handwriting": {
-    "characterRecognition": 0,
-    "wordLegibility": 0,
-    "neatness": 0,
-    "spacing": 0,
-    "overallReadability": 0,
-    "total": 0
-  },
-  "analysis": {
-    "studyReadiness": 0,
-"coveredTopics": [],
+STEP 3 — Handwriting Evaluation (100 marks)
+characterRecognition (0-50, based on % of characters clearly readable), wordLegibility (0-20), neatness (0-15), spacing (0-10), overallReadability (0-5). Sum = handwriting.total.
 
-"partialTopics": [],
+STEP 4 — Study Readiness
+Estimate exam-prep usefulness as a 0-100 percentage.
 
-"missingTopics": [],
+Limit each of strengths, weaknesses, improvements to at most 3 short bullet strings.
 
-"strengths": [],
-
-"weaknesses": [],
-
-"improvements": []
-  }
-}
-
-
-`;
+Return exactly this JSON shape:
+{"content":{"syllabusCoverage":0,"conceptAccuracy":0,"depth":0,"examples":0,"organization":0,"revisionFriendliness":0,"total":0},"handwriting":{"characterRecognition":0,"wordLegibility":0,"neatness":0,"spacing":0,"overallReadability":0,"total":0},"analysis":{"studyReadiness":0,"coveredTopics":[],"partialTopics":[],"missingTopics":[],"strengths":[],"weaknesses":[],"improvements":[]}}`;
       // ----------------------------------------
 
       let result;
 
-      try {
-        // Groq's vision models accept images, not raw PDFs — render up to the first 3 pages to PNG first
-        // (this model caps vision requests at 3 images per request, and free-tier TPM limits require
-        // keeping resolution modest — 1.0 scale keeps well under the 8000 token/min cap)
+      // Renders the given PDF pages to PNG at the given scale and calls Groq's vision model.
+      // Kept as a helper so we can retry with a smaller request if the first attempt is too large.
+      const runEvaluation = async (pageNumbers: number[], viewportScale: number) => {
         const pdfBuffer = Buffer.from(pdfBase64, "base64");
         const pngPages = await pdfToPng(pdfBuffer, {
-          viewportScale: 1.0,
-          pagesToProcess: [1, 2, 3],
+          viewportScale,
+          pagesToProcess: pageNumbers,
           strictPagesToProcess: false,
         });
 
@@ -569,15 +491,39 @@ Return ONLY this JSON:
           ],
           response_format: { type: "json_object" },
           reasoning_format: "hidden",
-          max_completion_tokens: 4096,
+          max_completion_tokens: 2048, // the JSON response is small; no need for 4096
         });
 
         const text = completion.choices[0]?.message?.content ?? "{}";
-        result = JSON.parse(text);
-        console.log("Groq AI Evaluation Result:");
-        console.log(JSON.stringify(result, null, 2));
-      } catch (aiErr: any) {
-        console.warn("Groq AI API call failed, applying quality verification fallback:", aiErr?.message || aiErr);
+        return JSON.parse(text);
+      };
+
+      // Attempt plan, from largest to smallest request. Each step lowers image resolution
+      // and/or page count so a 413 "tokens too large" error gets a real retry instead of
+      // immediately falling back to a static placeholder score.
+      const attempts: Array<{ pages: number[]; scale: number }> = [
+        { pages: [1, 2], scale: 0.6 },   // page 1: was [1,2,3] @ 1.0 — the main token-size fix
+        { pages: [1, 2], scale: 0.4 },   // retry smaller if still too large
+        { pages: [1], scale: 0.4 },      // last resort: single page, low-res
+      ];
+
+      let lastErr: any = null;
+      for (const attempt of attempts) {
+        try {
+          result = await runEvaluation(attempt.pages, attempt.scale);
+          lastErr = null;
+          break;
+        } catch (aiErr: any) {
+          lastErr = aiErr;
+          const message = aiErr?.message || String(aiErr);
+          const isTooLarge = message.includes("413") || message.toLowerCase().includes("too large") || message.toLowerCase().includes("tokens");
+          console.warn(`Groq AI attempt failed (pages=${attempt.pages}, scale=${attempt.scale}):`, message);
+          if (!isTooLarge) break; // don't keep retrying on non-size errors (bad key, network, etc.)
+        }
+      }
+
+      if (lastErr) {
+        console.warn("All Groq AI attempts failed, applying quality verification fallback:", lastErr?.message || lastErr);
         result = {
           content: { syllabusCoverage: 45, conceptAccuracy: 12, depth: 8, examples: 4, organization: 4, revisionFriendliness: 4, total: 77 },
           handwriting: { characterRecognition: 40, wordLegibility: 16, neatness: 12, spacing: 8, overallReadability: 4, total: 80 },
@@ -591,6 +537,9 @@ Return ONLY this JSON:
             improvements: ["Notes verified & unlocked access."]
           }
         };
+      } else {
+        console.log("Groq AI Evaluation Result:");
+        console.log(JSON.stringify(result, null, 2));
       }
 
       const content = result.content ?? {};
