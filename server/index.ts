@@ -526,10 +526,10 @@ Return exactly this JSON shape:
       if (lastErr) {
         console.warn("All Groq AI attempts failed, applying quality verification fallback:", lastErr?.message || lastErr);
         result = {
-          content: { syllabusCoverage: 45, conceptAccuracy: 12, depth: 8, examples: 4, organization: 4, revisionFriendliness: 4, total: 77 },
-          handwriting: { characterRecognition: 40, wordLegibility: 16, neatness: 12, spacing: 8, overallReadability: 4, total: 80 },
+          content: { syllabusCoverage: 5, conceptAccuracy: 5, depth: 8, examples: 4, organization: 4, revisionFriendliness: 4, total: 30 },
+          handwriting: { characterRecognition: 20, wordLegibility: 16, neatness: 2, spacing: 8, overallReadability: 4, total: 40 },
           analysis: {
-            studyReadiness: 85,
+            studyReadiness: 60,
             coveredTopics: syllabusTopics,
             partialTopics: [],
             missingTopics: [],
@@ -774,7 +774,7 @@ Structure Guidelines:
 6. Do NOT include raw horizontal dividers like '--' or extraneous Markdown noise.`
 
       const completion = await groq.chat.completions.create({
-        model: 'qwen/qwen3.6-27b',
+        model: 'qwen/qwen3.8-27b',
         messages: [{ role: 'user', content: prompt }],
         reasoning_format: "hidden",
         reasoning_effort: "none",

@@ -626,7 +626,7 @@ function UnitPage({ subject, unit, tab, setTab, unlocked, setUnlocked, showToast
     if (file.size > 10 * 1024 * 1024) return showToast('File size must be under 10MB.')
     try {
       setEvaluating(true)
-      showToast('Evaluating handwritten note with Gemini AI Vision...')
+      showToast('Evaluating handwritten note with  AI Vision...')
       const res = await fetch(`${apiUrl}/api/ai/evaluate-and-upload-note`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -667,7 +667,7 @@ function UnitPage({ subject, unit, tab, setTab, unlocked, setUnlocked, showToast
   const generateAiNotes = async () => {
     setGeneratingAiNotes(true)
     setAiNotesText('')
-    showToast('Synthesizing study notes with Gemini AI...')
+    showToast('Synthesizing study notes with AI...')
     try {
       const res = await fetch(`${apiUrl}/api/ai/generate-notes`, {
         method: 'POST',
@@ -807,7 +807,7 @@ function UnitPage({ subject, unit, tab, setTab, unlocked, setUnlocked, showToast
             {generatingAiNotes && (
               <div className="ai-loading-card">
                 <span className="big-spark">✦</span>
-                <h3>Synthesizing Revision Notes with Gemini AI...</h3>
+                <h3>Synthesizing Revision Notes with AI...</h3>
                 <p>Analyzing unit syllabus topics & structuring key definitions, formulas, and exam concepts.</p>
                 <div className="skeleton-container">
                   <div className="skeleton-bar"></div>
@@ -845,7 +845,7 @@ function UnitPage({ subject, unit, tab, setTab, unlocked, setUnlocked, showToast
               )
             })}
             {notesList.length === 0 && <p className="muted" style={{ marginTop: 15 }}>No notes uploaded for this unit yet.</p>}
-          </> : <div className="locked"><span>🔒</span><h2>Notes Library is Locked</h2><p>Upload 1 handwritten study note PDF. Gemini AI will evaluate readability, handwriting, and syllabus coverage.</p><label className="primary upload">Upload Notes to Pass Test<input type="file" accept="application/pdf" onChange={handleNoteUpload} /></label><small>Notes scoring 3.0 / 5.0 or above unlock full peer notes access.</small></div>}
+          </> : <div className="locked"><span>🔒</span><h2>Notes Library is Locked</h2><p>Upload 1 handwritten study note PDF. AI will evaluate readability, handwriting, and syllabus coverage.</p><label className="primary upload">Upload Notes to Pass Test<input type="file" accept="application/pdf" onChange={handleNoteUpload} /></label><small>Notes scoring 3.0 / 5.0 or above unlock full peer notes access.</small></div>}
         </section>
       )}
     </main>
@@ -996,7 +996,7 @@ function AdminPortal({ onBack, showToast, apiUrl }: any) {
         </article>
         <article className="panel">
           <h2>Unit Syllabus Benchmark</h2>
-          <p className="muted">Select a subject and unit. Gemini uses these topics when checking submitted notes.</p>
+          <p className="muted">Select a subject and unit.AI uses these topics when checking submitted notes.</p>
           <label>Subject
             <select value={syllabusCode} onChange={e => setSyllabusCode(e.target.value)}>
               <option value="">Select a subject</option>
@@ -1173,7 +1173,7 @@ function HelpGuideModal({ onClose }: { onClose: () => void }) {
             <span className="help-card-icon">🔓</span>
             <div>
               <h4>1. Share 1 Note, Unlock Everything</h4>
-              <p>Upload at least 1 handwritten study note PDF of any unit. Gemini AI checks legibility and syllabus coverage (&ge; 3.0 rating required). Once verified, you get full access to all peer notes across all subjects!</p>
+              <p>Upload at least 1 handwritten study note PDF of any unit. AI checks legibility and syllabus coverage (&ge; 3.0 rating required). Once verified, you get full access to all peer notes across all subjects!</p>
             </div>
           </div>
 
